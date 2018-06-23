@@ -1,0 +1,8 @@
+obj-tree:not(.oj-complete){
+  visibility: hidden;
+}
+
+obj-tree{
+	min-height: 50px;
+	width: 50px;
+}

@@ -1,0 +1,22 @@
+<div id='diagram-container'>
+    <oj-diagram id='diagram'
+     nodes:'[[nodes]]'
+     links:'[[links]]'
+      layout = '[[layoutFunc]]'
+      style-defaults = '[[styleDefaults]]'
+      node-properties = '[[function(data){return data;}]]'
+      link-properties = '[[function(data){return data;}]]'
+      style='max-width:800px;width:100%; height:600px;'>
+      
+      <oj-menu slot="contextMenu" style="display:none" aria-label="Edit" 
+          on-oj-action="[[menuItemAction]]"
+          on-oj-before-open="[[beforeOpenFunction]]">
+          <oj-option value="action1">Action 1</oj-option>
+          <oj-option value="action2">Action 2</oj-option>
+          <oj-option value="action3">Action 3</oj-option>
+      </oj-menu>
+    </oj-diagram>
+    <p>Last selected menu item:
+        <span id="results" class="italic" style="font-weight:bold" data-bind='text: selectedMenuItem'></span>
+    </p>
+  </div>
