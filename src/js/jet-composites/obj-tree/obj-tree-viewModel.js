@@ -1,7 +1,4 @@
-/**
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates.
-  The Universal Permissive License (UPL), Version 1.0
-*/
+
 'use strict';
 define(
     [
@@ -10,45 +7,61 @@ define(
       'ojs/ojlabel', 'ojs/ojinputtext'
     ],
     function(oj, ko, $) {
+      const colorHandler = new oj.ColorAttributeGroupHandler();
+      var httpHandler = {
+        fetchAll: (nodes, links) => {
+          var i = 0;
+          $.getJSON('http://localhost:3000/getAll', function(data) {
+            $.each(data, function() {
+              nodes.push({
+                id: this._id,
+                label: this.name + ': ' + this.code,
+                icon: {color: colorHandler.getValue('Group ' + this._id)}
+              });
+              links.push(
+                  {id: 'L' + i++, startNode: this.parent, endNode: this._id});
+              console.log(this._id);
+            });
+          })
+        },
+        update: (node, cb) => {
+          $.post('http://localhost:3000/update', node, function(data) {
+            cb(data, status);
+          });
+        },
+        remove: (node, cb) => {
+          $.post('http://localhost:3000/delete', node, function(data) {
+            cb(data);
+          });
+        },
+        insert: (node, cb) => {
+          $.post('http://localhost:3000/insert', node, function(data) {
+            cb(data);
+          });
+        },
+
+
+      };
+
       function mainContentViewModel() {
         const self = this;
-
-        // Assign the treeLayout function to Diagram
         self.layoutFunc = treeLayout;
-
-        // Generate the colors that we will be used for the Diagram nodes
-        const colorHandler = new oj.ColorAttributeGroupHandler();
-
-        var i = 0;
-        var nodes = [];
-        var links = [];
-        self.nodeValues = ko.observableArray(nodes);
-        self.linkValues = ko.observableArray(links);
-
-        $.getJSON('http://localhost:3000/getAll', function(data) {
-          $.each(data, function() {
-            nodes.push({
-              id: this._id,
-              label: this.name + ': ' + this.code,
-              icon: {color: colorHandler.getValue('Group ' + this._id)}
-            });
-            links.push(
-                {id: 'L' + i++, startNode: this.parent, endNode: this._id});
-            console.log(this._id);
-          });
-          self.nodeValues(nodes);
-          self.linkValues(links);
-        })
-
-
-
+        self.nodes = ko.observableArray([]);
+        self.links = ko.observableArray([]);
         self.data = ko.pureComputed(function() {
           return new oj.JsonDiagramDataSource(
-              {'nodes': self.nodeValues(), 'links': self.linkValues()});
+              {'nodes': self.nodes(), 'links': self.links()});
         });
+        self.modalText = ko.observable('Edit Objective Info');
+        self.newName = ko.observable('');
+        self.newCode = ko.observable('');
+        self.op1Disabled = ko.observable(false);
+        self.op2Disabled = ko.observable(false);
+        self.op3Disabled = ko.observable(false);
 
-        self.nodeValues(nodes);
-        self.linkValues(links);
+
+        httpHandler.fetchAll(self.nodes, self.links);
+
         // Style the nodes and links
         self.styleDefaults = {
           nodeDefaults: {icon: {width: 70, height: 70, shape: 'square'}},
@@ -56,9 +69,11 @@ define(
               {startConnectorType: 'none', endConnectorType: 'arrow'}
         };
 
+
         // context menu bindings
         var node, link;
         self.selectedMenuItem = ko.observable('(None selected yet)');
+
         self.beforeOpenFunction = function(event) {
           var target = event.detail.originalEvent.target;
           var diagram = document.getElementById('diagram');
@@ -70,40 +85,64 @@ define(
             else if (context.subId == 'oj-diagram-link')
               link = diagram.getLink(context['index']);
           }
+          if (node) {
+            self.op2Disabled(false);
+            self.op3Disabled(false);
+          } else {
+            self.op2Disabled(true);
+            self.op3Disabled(true);
+          }
         };
 
-        self.newName = ko.observable('');
-        self.newCode = ko.observable('');
-
+        var selectedAction;
         self.menuItemAction = function(event) {
-          var text = event.target.textContent;
+          var text = event.target.value;
+          console.log(text);
+          selectedAction = text;
+
           if (node) {
-            if (text == 'Edit') {
+            if (text == 'action3') {
+              // edit node: name and code
               self.selectedMenuItem(text + ' from Node ' + node.id);
               const nc = node.label.split(': ');
               self.newName(nc[0]);
               self.newCode(nc[1]);
               var popup = document.querySelector('#popup1');
               popup.open('#btnGo')
-            } else if (text == 'Remove') {
-              console.log('remove');
-              for (let i = 0; i < nodes.length; i++) {
-                if (node.id == nodes[i].id) nodes.splice(i, 1);
-              }
-              for (let i = 0; i < links.length; i++) {
-                if (node.id == links[i].startNode ||
-                    node.id == links[i].endNode) {
-                  links.splice(i, 1);
-                  i--;
+            } else if (text == 'action2') {
+              // remove node
+              let newNode = {id: node.id};
+              httpHandler.remove(newNode, (data) => {
+                if (data.result.ok == 1 && data.result.n == 1) {
+                  for (let i = 0; i < self.nodes().length; i++) {
+                    if (node.id == self.nodes()[i].id) self.nodes.splice(i, 1);
+                  }
+                  for (let i = 0; i < self.links().length; i++) {
+                    if (node.id == self.links()[i].startNode ||
+                        node.id == self.links()[i].endNode) {
+                      self.links.splice(i, 1);
+                      i--;
+                    }
+                  }
                 }
-              }
-              self.nodeValues(nodes);
-              self.linkValues(links);
+              });
+
+            } else if (text == 'action1') {
+              // insert new node
+              self.newName('');
+              self.newCode('');
+              self.modalText('Create New Objective');
+              var popup = document.querySelector('#popup1');
+              popup.open('#btnGo')
             }
           } else if (link) {
-            self.selectedMenuItem(text + ' from Link ' + link.id);
-          } else {
-            self.selectedMenuItem(text + ' from diagram background');
+          } else if (text == 'action1') {
+            // insert new node
+            self.newName('');
+            self.newCode('');
+            self.modalText('Create New Objective');
+            var popup = document.querySelector('#popup1');
+            popup.open('#btnGo')
           }
         };
 
@@ -111,7 +150,6 @@ define(
           startAnimationListener: function(data, event) {
             var ui = event.detail;
             if (!$(event.target).is('#popup1')) return;
-
             if ('open' === ui.action) {
               event.preventDefault();
               var options = {'direction': 'top'};
@@ -127,21 +165,56 @@ define(
             popup.close();
           },
           apply: function() {
-            // need to add edit logic
-            node.label = self.newName() + ': ' + self.newCode();
-            for (let i = 0; i < nodes.length; i++) {
-              if (node.id == nodes[i].id) nodes[i].label = node.label;
+            if (selectedAction == 'action3') {
+              // apply the edit node code or name
+              const newNode = {
+                id: node.id,
+                name: self.newName(),
+                code: self.newCode()
+              };
+              httpHandler.update(newNode, (data) => {
+                if (data.result.ok == 1) {
+                  node.label = self.newName() + ': ' + self.newCode();
+                  for (let i = 0; i < self.nodes().length; i++) {
+                    if (node.id == self.nodes()[i].id)
+                      self.nodes.replace(self.nodes()[i], node);
+                  }
+                  var popup = document.querySelector('#popup1');
+                  popup.close();
+                }
+              });
+
+            } else if (selectedAction == 'action1') {
+              // create new node by using the new Name and new Code from the
+              // text boxes
+              const newNode = {
+                name: self.newName(),
+                code: self.newCode(),
+                parent: node ?node.id:'none'
+              };
+              httpHandler.insert(newNode, (data) => {
+                let Nid = data.result.insertedIds[0];
+                if (data.result.insertedCount == 1) {
+                  self.nodes.push({
+                    id: Nid,
+                    label: newNode.name + ': ' + newNode.code,
+                    icon: {color: colorHandler.getValue('Group ' + Nid)}
+                  });
+                  self.links.push({
+                    id: 'L' + self.links().length,
+                    startNode: newNode.parent,
+                    endNode: Nid
+                  });
+                  var popup = document.querySelector('#popup1');
+                  popup.close();
+                }
+              });
             }
-            self.nodeValues(nodes);
-            var popup = document.querySelector('#popup1');
-            popup.close();
           }
         };
       }
 
-      /**
-       * @param {DvtDiagramLayoutContext} layoutContext the Diagram layout context
-       */
+
       function treeLayout(layoutContext) {
         // Get the node and link counts from the layout context
         var nodeCount = layoutContext.getNodeCount();
@@ -224,20 +297,7 @@ define(
           ]);
         }
       };
-      /**
-       * Lays out the subtree with the specified root id
-       *
-       * @param {DvtDiagramLayoutContext} layoutContext the Diagram layout context
-       * @param {string} rootId the id of the subtree root, may be null if this is the top-level entry call
-       * @param {object} parentChildMap A map from parent id to an array of child ids
-       * @param {object} childParentMap A map from child id to parent id
-       * @param {number} levelSize The width (including spacing) allocated to each level of the tree
-       * @param {number} siblingSize The height (including spacing) allocated to siblings in the same level
-       * @param {number} currentDepth the depth of rootId within the tree
-       * @param {array} leafPos A singleton array containing the current y position for leaf nodes that will be updated during layout
-       *
-       * @return {object} the position of the subtree root
-       */
+
       function layoutSubTree(
           layoutContext, rootId, parentChildMap, childParentMap, levelSize,
           siblingSize, currentDepth, leafPos) {

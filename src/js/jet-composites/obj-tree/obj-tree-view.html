@@ -1,11 +1,11 @@
-<div id='diagram-container'>
+<div id='diagram-container' class"objDiagram" style='height: 100%;'>
   <oj-diagram id='diagram' data='[[data]]' layout='[[layoutFunc]]' style-defaults='[[styleDefaults]]' node-properties='[[function(data){return data;}]]'
-    link-properties='[[function(data){return data;}]]' style='max-width:800px;width:100%; height:600px;'>
+    link-properties='[[function(data){return data;}]]' style='width:100%; height: 100%;'>
 
     <oj-menu slot="contextMenu" style="display:none" aria-label="Edit" on-oj-action="[[menuItemAction]]" on-oj-before-open="[[beforeOpenFunction]]">
-      <oj-option value="action1">Add Sub Objective</oj-option>
-      <oj-option value="action2">Remove</oj-option>
-      <oj-option value="action3">Edit</oj-option>
+      <oj-option value="action1" disabled=[[op1Disabled]] >Add</oj-option>
+      <oj-option value="action2" disabled=[[op2Disabled]]>Remove</oj-option>
+      <oj-option value="action3" disabled=[[op3Disabled]]>Edit</oj-option>
     </oj-menu>
   </oj-diagram>
   <div id="popupWrapper">
@@ -13,7 +13,7 @@
       position.at.vertical="center" position.of="window" position.offset.y="-10" modality="modal" data-bind="event:{'ojAnimateStart': viewModel.startAnimationListener}">
       <div class="demo-popup-body">
         <div class="demo-popup-header">
-          <h5>Edit Objective Info</h5>
+          <h5 data-bind="text:modalText"></h5>
         </div>
         <div class="demo-popup-content">
             <oj-label for="text-input">Name: </oj-label>
@@ -35,8 +35,4 @@
     </oj-popup>
    
   </div>
-
-  <p>Last action:
-    <span id="results" class="italic" style="font-weight:bold" data-bind='text: selectedMenuItem'></span>
-  </p>
 </div>
