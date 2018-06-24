@@ -6,7 +6,8 @@
 define(
     [
       'ojs/ojcore', 'knockout', 'jquery', 'ojs/ojdiagram', 'ojs/ojmenu',
-      'ojs/ojjsondiagramdatasource'
+      'ojs/ojjsondiagramdatasource', 'ojs/ojbutton', 'ojs/ojpopup',
+      'ojs/ojlabel', 'ojs/ojinputtext'
     ],
     function(oj, ko, $) {
       function mainContentViewModel() {
@@ -70,14 +71,70 @@ define(
               link = diagram.getLink(context['index']);
           }
         };
+
+        self.newName = ko.observable('');
+        self.newCode = ko.observable('');
+
         self.menuItemAction = function(event) {
           var text = event.target.textContent;
           if (node) {
-            self.selectedMenuItem(text + ' from Node ' + node.id);
+            if (text == 'Edit') {
+              self.selectedMenuItem(text + ' from Node ' + node.id);
+              const nc = node.label.split(': ');
+              self.newName(nc[0]);
+              self.newCode(nc[1]);
+              var popup = document.querySelector('#popup1');
+              popup.open('#btnGo')
+            } else if (text == 'Remove') {
+              console.log('remove');
+              for (let i = 0; i < nodes.length; i++) {
+                if (node.id == nodes[i].id) nodes.splice(i, 1);
+              }
+              for (let i = 0; i < links.length; i++) {
+                if (node.id == links[i].startNode ||
+                    node.id == links[i].endNode) {
+                  links.splice(i, 1);
+                  i--;
+                }
+              }
+              self.nodeValues(nodes);
+              self.linkValues(links);
+            }
           } else if (link) {
             self.selectedMenuItem(text + ' from Link ' + link.id);
           } else {
             self.selectedMenuItem(text + ' from diagram background');
+          }
+        };
+
+        self.viewModel = {
+          startAnimationListener: function(data, event) {
+            var ui = event.detail;
+            if (!$(event.target).is('#popup1')) return;
+
+            if ('open' === ui.action) {
+              event.preventDefault();
+              var options = {'direction': 'top'};
+              oj.AnimationUtils.slideIn(ui.element, options)
+                  .then(ui.endCallback);
+            } else if ('close' === ui.action) {
+              event.preventDefault();
+              ui.endCallback();
+            }
+          },
+          cancel: function() {
+            var popup = document.querySelector('#popup1');
+            popup.close();
+          },
+          apply: function() {
+            // need to add edit logic
+            node.label = self.newName() + ': ' + self.newCode();
+            for (let i = 0; i < nodes.length; i++) {
+              if (node.id == nodes[i].id) nodes[i].label = node.label;
+            }
+            self.nodeValues(nodes);
+            var popup = document.querySelector('#popup1');
+            popup.close();
           }
         };
       }
